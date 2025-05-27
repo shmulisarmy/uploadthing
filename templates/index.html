@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Image</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f7f7f7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    form {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      width: 340px;
+      text-align: center;
+    }
+
+    #drop-zone {
+      border: 2px dashed #aaa;
+      border-radius: 10px;
+      padding: 30px;
+      background: #f9f9f9;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    #drop-zone.dragover {
+      background: #eef;
+      border-color: #33f;
+    }
+
+    #drop-zone p {
+      margin: 0;
+      color: #555;
+    }
+
+    #preview {
+      margin-top: 15px;
+      max-width: 100%;
+      max-height: 200px;
+      display: none;
+      border-radius: 6px;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .loading::after {
+      content: '⏳ Uploading...';
+      display: inline-block;
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    .success {
+      color: green;
+    }
+
+    .error {
+      color: red;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      background: #007bff;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6 }
+      50% { opacity: 1 }
+      100% { opacity: 0.6 }
+    }
+  </style>
+</head>
+<body>
+
+<form onsubmit="return false;">
+  <div id="drop-zone">
+    <p>Drop an image here or click to upload</p>
+    <input type="file" id="file-input" accept="image/*" hidden />
+    <img id="preview" src="" alt="Image preview" />
+  </div>
+
+  <input type="text" id="image-name" name="name" placeholder="Enter image name (without extension)" />
+  
+  <div id="status"></div>
+
+  <button type="submit" onclick="uploadSelected()">Upload</button>
+</form>
+
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const preview = document.getElementById('preview');
+  const status = document.getElementById('status');
+  const nameInput = document.getElementById('image-name');
+  let selectedFile = null;
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      setPreview(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      setPreview(fileInput.files[0]);
+    }
+  });
+
+  function setPreview(file) {
+    if (!file.type.startsWith('image/')) {
+      showStatus('Only image files are allowed.', 'error');
+      return;
+    }
+
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+      preview.src = reader.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    showStatus('');
+  }
+
+  function showStatus(message, type = '') {
+    status.textContent = message;
+    status.className = type;
+  }
+
+  function uploadSelected() {
+    const nameValue = nameInput.value.trim();
+
+    if (!selectedFile) {
+      showStatus('Please select an image first.', 'error');
+      return;
+    }
+
+    if (!nameValue) {
+      showStatus('Please enter a name for the image.', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('provided_before_extension_filename', nameValue);
+
+    showStatus('', '');
+    status.classList.add('loading');
+
+    fetch('http://localhost:8001/upload', {
+      method: 'POST',
+      body: formData
+    })
+      .then(res => res.json())
+      .then(data => {
+        status.classList.remove('loading');
+        if (data['full-url']) {
+          showStatus('Uploaded successfully! URL copied to clipboard ✅', 'success');
+          navigator.clipboard.writeText(data['full-url']);
+        } else {
+          showStatus('Upload failed. Try again.', 'error');
+        }
+      })
+      .catch(err => {
+        status.classList.remove('loading');
+        showStatus('Error: ' + err.message, 'error');
+      });
+  }
+</script>
+
+</body>
+</html>
