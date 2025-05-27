@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Form
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +23,6 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-base_url = "http://localhost:8001"
 
 
 def file_exists(filename: str):
@@ -65,8 +65,8 @@ async def upload_file(
 
     return {
         "filename": filename,
-        "full-url": f"{base_url}/@{filename}",
-        "url-ending": f"/@{filename}"
+        "full-url": f"@{filename}",
+        "url-ending": f"@{filename}"
     }
 
 
@@ -81,6 +81,9 @@ async def get_file(filenameWithAtSign: str):
     return FileResponse(file_path)
 
 
+
+port = int(os.getenv("PORT", 8000))
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
